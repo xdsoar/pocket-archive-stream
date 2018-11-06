@@ -34,6 +34,7 @@ Link {
 
 import datetime
 from html import unescape
+from collections import OrderedDict
 
 from util import (
     domain,
@@ -73,6 +74,14 @@ def validate_links(links):
 
     return list(links)
 
+def new_links(all_links, existing_links):
+    """
+    Return all links which are in the all_links but not in the existing_links.
+    This is used to determine which links are new and not indexed jet. Set the
+    ONLY_NEW environment variable to activate this filter mechanism.
+    """
+    existing_urls = {link['url'] for link in existing_links}
+    return [link for link in all_links if link['url'] not in existing_urls]
 
 def archivable_links(links):
     """remove chrome://, about:// or other schemed links that cant be archived"""
@@ -87,7 +96,7 @@ def uniquefied_links(sorted_links):
     ensures that all non-duplicate links have monotonically increasing timestamps
     """
 
-    unique_urls = {}
+    unique_urls = OrderedDict()
 
     lower = lambda url: url.lower().strip()
     without_www = lambda url: url.replace('://www.', '://', 1)
@@ -100,7 +109,7 @@ def uniquefied_links(sorted_links):
             link = merge_links(unique_urls[fuzzy_url], link)
         unique_urls[fuzzy_url] = link
 
-    unique_timestamps = {}
+    unique_timestamps = OrderedDict()
     for link in unique_urls.values():
         link['timestamp'] = lowest_uniq_timestamp(unique_timestamps, link['timestamp'])
         unique_timestamps[link['timestamp']] = link
@@ -108,7 +117,7 @@ def uniquefied_links(sorted_links):
     return unique_timestamps.values()
 
 def sorted_links(links):
-    sort_func = lambda link: (link['timestamp'], link['url'])
+    sort_func = lambda link: (link['timestamp'].split('.', 1)[0], link['url'])
     return sorted(links, key=sort_func, reverse=True)
 
 def links_after_timestamp(links, timestamp=None):
